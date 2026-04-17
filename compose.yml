@@ -1,0 +1,24 @@
+services:
+  app:
+    image: freepaddler/3xui-user-sync
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: secret
+      HTTP_ADDR: ":8080"
+      DB_PATH: /app/data/app.db
+      LOG_LEVEL: info
+      LOG_FORMAT: pretty
+      PUBLIC_SUBSCRIPTION_PATH: /sub/
+      PROFILE_TITLE: 3xui-users-sync
+      SECURE_COOKIE: "false"
+      REQUEST_TIMEOUT: 15s
+      SESSION_TTL: 24h
+      SESSION_IDLE_TIMEOUT: 8h
+      REMEMBER_ME_TTL: 720h
+    volumes:
+      - ./testdata/data:/app/data

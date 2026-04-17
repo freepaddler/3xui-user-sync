@@ -1,0 +1,9 @@
+.DS_Store
+
+testdata/data/*
+!testdata/data/.gitkeep
+
+data/*
+!data/.gitkeep
+
+*.log
