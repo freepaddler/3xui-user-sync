@@ -3,7 +3,6 @@
 testdata/data/*
 !testdata/data/.gitkeep
 
-data/*
-!data/.gitkeep
-
 *.log
+.docker-build-cache/
+3xui-user-sync

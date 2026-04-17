@@ -50,7 +50,7 @@ func migrate(ctx context.Context, db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT NOT NULL UNIQUE,
-			subscription_id TEXT NOT NULL UNIQUE,
+			subscription_id TEXT NOT NULL,
 			uid TEXT NOT NULL UNIQUE,
 			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -75,6 +75,9 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			return fmt.Errorf("migrate sqlite: %w", err)
 		}
 	}
+	if err := migrateUsersTableAllowDuplicateSubscriptionID(ctx, db); err != nil {
+		return err
+	}
 	if _, err := db.ExecContext(ctx, `
 		UPDATE servers
 		SET subscription_url = RTRIM(base_url, '/') || subscription_path
@@ -85,6 +88,49 @@ func migrate(ctx context.Context, db *sql.DB) error {
 			WHERE name = 'subscription_path'
 		  )`); err != nil && !strings.Contains(err.Error(), "no such column: subscription_path") {
 		return fmt.Errorf("migrate sqlite legacy subscription url: %w", err)
+	}
+	return nil
+}
+
+func migrateUsersTableAllowDuplicateSubscriptionID(ctx context.Context, db *sql.DB) error {
+	var schema string
+	if err := db.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'`).Scan(&schema); err != nil {
+		return fmt.Errorf("inspect users schema: %w", err)
+	}
+	if !strings.Contains(strings.ToLower(schema), "subscription_id text not null unique") {
+		return nil
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin users schema migration: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	stmts := []string{
+		`ALTER TABLE users RENAME TO users_old;`,
+		`CREATE TABLE users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT NOT NULL UNIQUE,
+			subscription_id TEXT NOT NULL,
+			uid TEXT NOT NULL UNIQUE,
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`INSERT INTO users (id, username, subscription_id, uid, created_at, updated_at)
+		 SELECT id, username, subscription_id, uid, created_at, updated_at
+		 FROM users_old;`,
+		`DROP TABLE users_old;`,
+	}
+	for _, stmt := range stmts {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("migrate users subscription_id uniqueness: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit users schema migration: %w", err)
 	}
 	return nil
 }

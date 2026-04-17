@@ -4,21 +4,21 @@ WORKDIR /src
 
 COPY . .
 
-RUN go mod download
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/3xui-user-sync ./cmd/main.go
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/3xui-user-sync ./cmd/main.go
 
 FROM scratch
 
 WORKDIR /app
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build --chown=65532:65532 /out/3xui-user-sync /app/3xui-user-sync
-COPY --from=build --chown=65532:65532 /src/data /app/data
-
-USER 65532:65532
+COPY --from=build /out/3xui-user-sync /app/3xui-user-sync
 
 ENV HTTP_ADDR=:8080
-ENV DB_PATH=/app/data/app.db
+ENV DB_PATH=/app/app.db
 ENV LOG_LEVEL=info
 ENV LOG_FORMAT=pretty
 ENV PUBLIC_SUBSCRIPTION_PATH=/sub/

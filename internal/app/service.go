@@ -89,8 +89,8 @@ func (s *Service) Logout(ctx context.Context, id string) {
 	s.sessions.Delete(ctx, id)
 }
 
-func (s *Service) ListUsers(ctx context.Context) ([]domain.User, error) {
-	return s.users.List(ctx)
+func (s *Service) ListUsers(ctx context.Context, search, sortBy, sortDir string) ([]domain.User, error) {
+	return s.users.ListFiltered(ctx, search, sortBy, sortDir)
 }
 
 func (s *Service) ListServers(ctx context.Context) ([]domain.Server, error) {
@@ -368,6 +368,7 @@ func (s *Service) FetchServerStatuses(ctx context.Context) ([]domain.ServerStatu
 	var wg sync.WaitGroup
 	for idx, server := range servers {
 		if !server.Active {
+			results[idx] = s.fetchSingleServerStatus(ctx, server)
 			continue
 		}
 		wg.Add(1)

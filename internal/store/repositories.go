@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,10 +22,33 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
-	rows, err := r.db.QueryContext(ctx, `
+	return r.ListFiltered(ctx, "", "username", "asc")
+}
+
+func (r *UserRepository) ListFiltered(ctx context.Context, search, sortBy, sortDir string) ([]domain.User, error) {
+	orderBy := "username"
+	switch sortBy {
+	case "subscription_id":
+		orderBy = "subscription_id"
+	}
+	dir := "ASC"
+	if strings.EqualFold(sortDir, "desc") {
+		dir = "DESC"
+	}
+
+	query := `
 		SELECT id, username, subscription_id, uid, created_at, updated_at
-		FROM users
-		ORDER BY username ASC`)
+		FROM users`
+	args := []any{}
+	search = strings.TrimSpace(search)
+	if search != "" {
+		query += ` WHERE username LIKE ? OR subscription_id LIKE ?`
+		pattern := "%" + search + "%"
+		args = append(args, pattern, pattern)
+	}
+	query += fmt.Sprintf(` ORDER BY %s %s, id ASC`, orderBy, dir)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
