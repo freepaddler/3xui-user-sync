@@ -4,7 +4,7 @@ WORKDIR /src
 
 COPY . .
 
-RUN go mod tidy
+RUN go mod download
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/3xui-user-sync ./cmd/main.go
 
 FROM scratch
