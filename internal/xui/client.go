@@ -49,12 +49,12 @@ func New(timeout time.Duration, log zerolog.Logger) (*Client, error) {
 }
 
 type ServerCredentials struct {
-	BaseURL       string
-	Username      string
-	Password      string
-	Subscription  string
-	ServerID      int64
-	ServerLabel   string
+	BaseURL      string
+	Username     string
+	Password     string
+	Subscription string
+	ServerID     int64
+	ServerLabel  string
 }
 
 func (c *Client) ListInbounds(ctx context.Context, creds ServerCredentials) ([]domain.Inbound, error) {
@@ -107,7 +107,7 @@ func (c *Client) UpsertClient(ctx context.Context, creds ServerCredentials, inbo
 
 	if !exists {
 		settingsJSON, err := json.Marshal(addClientSettings{
-			Clients: []apiClient{toAPIClient(remote)},
+			Clients: []apiClient{toAPIClient(inbound, remote)},
 		})
 		if err != nil {
 			return err
@@ -119,7 +119,7 @@ func (c *Client) UpsertClient(ctx context.Context, creds ServerCredentials, inbo
 	}
 
 	settingsJSON, err := json.Marshal(addClientSettings{
-		Clients: []apiClient{toAPIClient(remote)},
+		Clients: []apiClient{toAPIClient(inbound, remote)},
 	})
 	if err != nil {
 		return err
@@ -483,12 +483,12 @@ func parseStreamSettings(raw string) streamSettings {
 	return parsed
 }
 
-func toAPIClient(c domain.RemoteClient) apiClient {
+func toAPIClient(inbound domain.Inbound, c domain.RemoteClient) apiClient {
 	return apiClient{
 		ID:         c.UID,
 		Email:      c.Email,
 		Enable:     c.Enable,
-		Flow:       fallback(c.Flow, defaultFlow),
+		Flow:       clientFlow(inbound, c.Flow),
 		SubID:      fallback(c.SubID, defaultSub),
 		TGID:       zeroToEmpty(c.TGID),
 		Comment:    c.Comment,
@@ -499,6 +499,18 @@ func toAPIClient(c domain.RemoteClient) apiClient {
 		CreatedAt:  c.CreatedAt,
 		UpdatedAt:  c.UpdatedAt,
 	}
+}
+
+func clientFlow(inbound domain.Inbound, current string) string {
+	if !supportsClientFlow(inbound) {
+		return ""
+	}
+	return fallback(current, defaultFlow)
+}
+
+func supportsClientFlow(inbound domain.Inbound) bool {
+	return strings.EqualFold(strings.TrimSpace(inbound.Protocol), "vless") &&
+		strings.EqualFold(strings.TrimSpace(inbound.Network), "tcp")
 }
 
 func fallback(v, d string) string {

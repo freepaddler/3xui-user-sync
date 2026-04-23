@@ -1,8 +1,8 @@
 package app
 
 import (
-	"encoding/base64"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -247,7 +247,6 @@ func (s *Service) RecreateUserInbound(ctx context.Context, userID, serverID, inb
 		UID:       user.UID,
 		Email:     user.Username,
 		Enable:    true,
-		Flow:      "xtls-rprx-vision",
 		SubID:     user.SubscriptionID,
 		InboundID: inboundID,
 	}
@@ -289,7 +288,6 @@ func (s *Service) setUserInboundState(ctx context.Context, user domain.User, ser
 			UID:       user.UID,
 			Email:     user.Username,
 			Enable:    enabled,
-			Flow:      "xtls-rprx-vision",
 			SubID:     user.SubscriptionID,
 			InboundID: inboundID,
 		}
